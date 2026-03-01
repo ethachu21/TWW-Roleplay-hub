@@ -1,0 +1,42 @@
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      TOKEN: ${TOKEN}
+      POSTGRES_CONNECTION: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}"
+    depends_on:
+      database:
+        condition: service_healthy
+        restart: true
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./Core
+          target: /usr/src/Roleplay/Core
+        - action: sync+restart
+          path: ./Data
+          target: /usr/src/Roleplay/Data
+        - action: sync+restart
+          path: ./Ext
+          target: /usr/src/Roleplay/Ext
+        - action: rebuild
+          path: ./requirements.txt
+  
+  database:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./.Database:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      retries: 5
+      start_period: 5s
+      timeout: 5s
