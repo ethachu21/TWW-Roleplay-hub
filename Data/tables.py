@@ -1,4 +1,4 @@
-from sqlmodel import ForeignKey
+from sqlalchemy import ForeignKey
 from .base import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, Integer, JSON
@@ -9,7 +9,7 @@ class ItemType(Enum):
     OTHER = "other"
 
 class Item(Base):
-    __tablename__ = "items" #type:ignore
+    __tablename__ = "items" 
 
     name: Mapped[str] = mapped_column(String, primary_key=True)
     type: Mapped[ItemType] = mapped_column()
@@ -19,7 +19,7 @@ class Item(Base):
 
 
 class Character(Base):
-    __tablename__ = "characters" #type:ignore 
+    __tablename__ = "characters"
     
     name: Mapped[str] = mapped_column(String, primary_key=True)
     account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"))
@@ -28,7 +28,7 @@ class Character(Base):
     account: Mapped["Account"] = relationship()
 
 class Account(Base):
-    __tablename__ = "accounts" #type:ignore
+    __tablename__ = "accounts" 
 
     id: Mapped[int] = mapped_column(primary_key=True)
     balance: Mapped[int] = mapped_column(default=0)

@@ -1,4 +1,4 @@
-from sqlmodel import SQLModel
+from sqlalchemy.orm import DeclarativeBase
 
-class Base(SQLModel):
+class Base(DeclarativeBase):
     ...
