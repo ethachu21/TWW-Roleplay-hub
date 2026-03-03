@@ -15,11 +15,18 @@ bot = AutoShardedBot(
 
 @bot.event
 async def on_ready():
-    print(f"Logged in as: {bot.user.name}") # type:ignore
+    print(f"Logged in as: {bot.user.name}",flush=True) # type:ignore
     for ext in os.listdir("Ext"):
         if ext.endswith(".py"):
-            print(f"Loading: {ext}")
+            print(f"Loading: {ext}", flush=True)
             await bot.load_extension("Ext." + ext[:-3])
     await bot.tree.sync()
-    print("Commands Synced")
+    print("Commands Synced",flush=True)
+    await bot.change_presence(activity=discord.CustomActivity("I wrote this god forsaken string at 01:05 AM --ethachu21")) 
 
+@bot.event
+async def on_message(msg: discord.Message):
+    if msg.content == "who am i" and msg.author.name == "can_van_der_linde":
+        await msg.reply("you are semen")
+    elif msg.content == "who am i":
+        await msg.reply(f"You are {msg.author.mention}")
