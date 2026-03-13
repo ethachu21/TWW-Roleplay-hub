@@ -1,0 +1,55 @@
+name: Deploy Roleplay Bot
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_KEY }}
+
+      - name: Harbor Login
+        uses: docker/login-action@v3
+        with: 
+          registry: harbor.tail354bc8.ts.net
+          username: "robot$roleplay-ghactions"
+          password: ${{ secrets.HARBOR_KEY }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: harbor.tail354bc8.ts.net/roleplay/bot:latest
+      
+      - name: Setup kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Secrets
+        run: |
+          kubectl create secret generic roleplay-secrets \
+            --from-literal=token="${{ secrets.TOKEN }}" \
+            --from-literal=staff_id="${{ secrets.STAFF_ID }}" \
+            --from-literal=postgres_user="${{ secrets.POSTGRES_USER }}" \
+            --from-literal=postgres_password="${{ secrets.POSTGRES_PASSWORD }}" \
+            --from-literal=postgres_db="${{ secrets.POSTGRES_DB }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Restart Deployment & Update Manifest
+        run: |
+          kubectl apply -f .k8s/postgres-deployment.yaml
+          kubectl rollout status deployment/postgres
+          kubectl apply -f .k8s/discord-deployment.yaml
+          kubectl rollout status deployment/roleplay-bot

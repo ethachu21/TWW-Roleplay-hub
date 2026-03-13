@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: roleplay-bot
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      app: roleplay-bot
+  template:
+    metadata:
+      labels:
+        app: roleplay-bot
+    spec:
+      imagePullSecrets:
+        - name: harbor-creds
+      containers:
+        - name: roleplay-bot
+          image: harbor.tail354bc8.ts.net/roleplay/bot:latest
+          imagePullPolicy: Always
+          env:
+            - name: TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: roleplay-secrets
+                  key: token
+            - name: STAFF_ID
+              valueFrom:
+                secretKeyRef:
+                  name: roleplay-secrets
+                  key: staff_id
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: roleplay-secrets
+                  key: postgres_user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: roleplay-secrets
+                  key: postgres_password
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: roleplay-secrets
+                  key: postgres_db
