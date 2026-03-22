@@ -27,6 +27,6 @@ async def on_ready():
 @bot.event
 async def on_message(msg: discord.Message):
     if msg.content == "who am i" and msg.author.name == "can_van_der_linde":
-        await msg.reply("you are semen")
+        await msg.reply("you are dutch, an absolute madlad")
     elif msg.content == "who am i":
         await msg.reply(f"You are {msg.author.mention}")
