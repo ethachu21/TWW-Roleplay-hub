@@ -47,5 +47,20 @@ spec:
                 secretKeyRef:
                   name: roleplay-secrets
                   key: postgres_db
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: roleplay-secrets
+                  key: postgres_user
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: roleplay-secrets
+                  key: postgres_password
+            - name: PGDATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: roleplay-secrets
+                  key: postgres_db
             - name: POSTGRES_CONNECTION
               value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@database:5432/$(POSTGRES_DB)"
