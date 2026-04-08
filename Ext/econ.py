@@ -29,11 +29,11 @@ class Cog(commands.Cog):
                 )
             else:
                 # Public: All accounts
-                stmt = select(Account)
+                stmt = select(Account).outerjoin(Character)
 
             # Filter by typing
             if current:
-                # User might type "ACC-1" or just "1"
+                # User might type "ACC-1", "1", or "CharName"
                 if "-" in current:
                     acc_type, acc_id = current.split("-", 1)
                     stmt = stmt.where(Account.type.ilike(f"{acc_type}%"))
@@ -42,7 +42,11 @@ class Cog(commands.Cog):
                 elif current.isdigit():
                     stmt = stmt.where(Account.id == int(current))
                 else:
-                    stmt = stmt.where(Account.type.ilike(f"{current}%"))
+                    # Search by account type OR character name
+                    stmt = stmt.where(
+                        (Account.type.ilike(f"{current}%")) |
+                        (Character.name.ilike(f"%{current}%"))
+                    )
 
             results = session.scalars(stmt.limit(25)).all()
             
@@ -67,8 +71,8 @@ class Cog(commands.Cog):
                 await interaction.response.send_message(f"Character `{name}` already exists.", ephemeral=True)
                 return
 
-            # Default type 'ACC' for character accounts
-            new_account = Account(type="ACC", balance=0)
+            # Default type 'ACC' for character accounts with 1000 starting credits
+            new_account = Account(type="ACC", balance=1000)
             session.add(new_account)
             session.flush()
 
@@ -80,10 +84,17 @@ class Cog(commands.Cog):
             session.add(new_char)
             session.commit()
 
-        await interaction.response.send_message(f"Character `{name}` created with Account: **ACC-{new_account.id}**")
+            embed = discord.Embed(
+                title="Character Created",
+                description=f"Character **{name}** has been successfully created.",
+                color=discord.Color.green()
+            )
+            embed.add_field(name="Account ID", value=f"ACC-{new_account.id}", inline=True)
+            embed.add_field(name="Owner", value=interaction.user.mention, inline=True)
+            
+            await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="balance", description="Check an account's balance")
-    @app_commands.autocomplete(account=account_autocomplete)
     async def balance(self, interaction: discord.Interaction, account: str):
         """Check balance using TYPE-ID (Public)."""
         if "-" not in account:
@@ -105,8 +116,11 @@ class Cog(commands.Cog):
             
             await interaction.response.send_message(f"Account **{account}** balance: **{acc.balance}** credits.")
 
+    @balance.autocomplete("account")
+    async def balance_account_autocomplete(self, interaction: discord.Interaction, current: str):
+        return await self.account_autocomplete(interaction, current)
+
     @app_commands.command(name="transfer", description="Transfer credits between accounts")
-    @app_commands.autocomplete(from_account=account_autocomplete, to_account=account_autocomplete)
     async def transfer(self, interaction: discord.Interaction, from_account: str, to_account: str, amount: int):
         """Transfer between accounts using TYPE-ID."""
         if amount <= 0:
@@ -148,6 +162,12 @@ class Cog(commands.Cog):
             session.commit()
 
         await interaction.response.send_message(f"Transferred **{amount}** from **{from_account}** to **{to_account}**.")
+
+    @transfer.autocomplete("from_account")
+    @transfer.autocomplete("to_account")
+    async def transfer_account_autocomplete(self, interaction: discord.Interaction, current: str):
+        return await self.account_autocomplete(interaction, current)
+
 
     @app_commands.command(name="list", description="List accounts owned by a user")
     async def list_accounts(self, interaction: discord.Interaction, user: discord.Member = None):
