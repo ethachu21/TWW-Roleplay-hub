@@ -10,7 +10,7 @@ engine = create_engine(CONNECTION, echo=True)
 
 # Import Schema
 from .base import Base
-from .tables import Character, Item, ItemType, Account
+from .tables import Character, Account
 
 # Create the database (ensure database actually exists)
 Base.metadata.create_all(engine)
