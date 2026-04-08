@@ -24,6 +24,10 @@ async def on_ready():
     print("Commands Synced",flush=True)
     await bot.change_presence(activity=discord.CustomActivity("I wrote this god forsaken string at 01:05 AM --ethachu21")) 
 
+@bot.tree.command(name="ping", description="Check the bot's latency")
+async def ping(interaction: discord.Interaction):
+    await interaction.response.send_message(f"Pong! {round(bot.latency * 1000)}ms")
+
 @bot.event
 async def on_message(msg: discord.Message):
     if msg.content == "who am i" and msg.author.name == "can_van_der_linde":

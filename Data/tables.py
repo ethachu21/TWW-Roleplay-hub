@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, BigInteger
 from .base import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, Integer, JSON
@@ -10,7 +10,7 @@ class Character(Base):
     __tablename__ = "characters"
     
     name: Mapped[str] = mapped_column(String, primary_key=True)
-    discord_id: Mapped[int] = mapped_column(Integer) # Owner of the character
+    discord_id: Mapped[int] = mapped_column(BigInteger) # Owner of the character
     account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"))
     
     account: Mapped["Account"] = relationship()

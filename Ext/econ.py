@@ -174,6 +174,3 @@ class Cog(commands.Cog):
 
 async def setup(bot: commands.AutoShardedBot):
     await bot.add_cog(Cog(bot))
-
-async def setup(bot: commands.AutoShardedBot):
-    await bot.add_cog(Cog(bot))
