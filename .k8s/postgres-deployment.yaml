@@ -39,6 +39,11 @@ spec:
                 secretKeyRef:
                   name: roleplay-secrets
                   key: postgres_user
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: roleplay-secrets
+                  key: postgres_user
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
