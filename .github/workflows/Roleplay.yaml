@@ -28,7 +28,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: false
+          push: true
           tags: harbor.tail354bc8.ts.net/roleplay/bot:latest
       
       - name: Setup kubectl
