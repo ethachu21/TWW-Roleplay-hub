@@ -83,7 +83,7 @@ class Cog(commands.Cog):
                     color=discord.Color.green()
                 )
                 embed.add_field(name="Owner", value=interaction.user.mention, inline=True)
-                embed.set_footer(text="Starting Balance: $400")
+                embed.set_footer(text="Use /balance to see your balance")
                 
                 await interaction.response.send_message(embed=embed)
         except Exception as e:
