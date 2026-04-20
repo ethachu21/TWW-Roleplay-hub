@@ -1,4 +1,5 @@
 discord
+tenacity
 sqlalchemy
 dotenv
 psycopg2-binary
