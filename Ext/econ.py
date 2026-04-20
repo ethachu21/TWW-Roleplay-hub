@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from Data.tables import Character, Account
+from Data.tables import Character, Account, Business
 from Data import engine
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -11,171 +11,226 @@ class Cog(commands.Cog):
         super().__init__()
         self.bot = bot
 
-    async def account_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-        """Autocomplete for accounts based ONLY on character name."""
+    async def private_account_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        """Autocomplete for a user's own Accounts (Characters & Businesses)"""
         with Session(engine) as session:
-            # Determine if we need to filter by the user's own characters
-            is_private = (
-                interaction.command.name == "transfer" and 
-                interaction.focused.name == "from_account"
-            )
+            # Find Characters owned by the user
+            char_stmt = select(Character).where(
+                Character.name.ilike(f"%{current}%"),
+                Character.discord_id == interaction.user.id
+            ).limit(25)
+            characters = session.scalars(char_stmt).all()
 
-            stmt = select(Character)
-            if is_private:
-                stmt = stmt.where(Character.discord_id == interaction.user.id)
+            # Find Businesses owned by the user
+            biz_stmt = select(Business).join(Business.owner).where(
+                Business.name.ilike(f"%{current}%"),
+                Character.discord_id == interaction.user.id
+            ).limit(25)
+            businesses = session.scalars(biz_stmt).all()
 
-            if current:
-                stmt = stmt.where(Character.name.ilike(f"%{current}%"))
-
-            # Limit results for performance and Discord constraints
-            results = session.scalars(stmt.limit(25)).all()
-            
             choices = []
-            for char in results:
-                acc = session.get(Account, char.account_id)
-                if not acc:
-                    continue
-                
-                # Label: Name (TYPE-ID), Value: TYPE-ID
-                label = f"{char.name} ({acc.type}-{acc.id})"
-                choices.append(app_commands.Choice(name=label, value=f"{acc.type}-{acc.id}"))
+            for char in characters:
+                if char.account:
+                    choices.append(app_commands.Choice(name=f"[👤] {char.name}", value=str(char.account.id)))
             
-            return choices
+            for biz in businesses:
+                if biz.account:
+                    choices.append(app_commands.Choice(name=f"[🏢] {biz.name}", value=str(biz.account.id)))
+
+            return choices[:25]
+
+    async def public_account_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        """Autocomplete for any Account"""
+        with Session(engine) as session:
+            char_stmt = select(Character).where(Character.name.ilike(f"%{current}%")).limit(25)
+            characters = session.scalars(char_stmt).all()
+
+            biz_stmt = select(Business).where(Business.name.ilike(f"%{current}%")).limit(25)
+            businesses = session.scalars(biz_stmt).all()
+
+            choices = []
+            for char in characters:
+                if char.account:
+                    choices.append(app_commands.Choice(name=f"[👤] {char.name}", value=str(char.account.id)))
+            
+            for biz in businesses:
+                if biz.account:
+                    choices.append(app_commands.Choice(name=f"[🏢] {biz.name}", value=str(biz.account.id)))
+
+            return choices[:25]
+
+    def _error_embed(self, message: str) -> discord.Embed:
+        return discord.Embed(title="Error", description=message, color=discord.Color.red())
 
     @app_commands.command(name="create", description="Create a new character")
     async def create(self, interaction: discord.Interaction, name: str):
-        """Creates a new character and an associated account."""
-        with Session(engine) as session:
-            existing_char = session.get(Character, name)
-            if existing_char:
-                return await interaction.response.send_message(f"Character `{name}` already exists.", ephemeral=True)
+        try:
+            with Session(engine) as session:
+                existing_char = session.get(Character, name)
+                if existing_char:
+                    return await interaction.response.send_message(embed=self._error_embed(f"Character `{name}` already exists."), ephemeral=True)
 
-            # Default type 'ACC' for character accounts with 1000 starting credits
-            new_account = Account(type="ACC", balance=1000)
-            session.add(new_account)
-            session.flush()
+                new_char = Character(
+                    name=name, 
+                    discord_id=interaction.user.id, 
+                )
+                session.add(new_char)
+                session.commit()
 
-            new_char = Character(
-                name=name, 
-                discord_id=interaction.user.id, 
-                account_id=new_account.id
-            )
-            session.add(new_char)
-            session.commit()
-
-            embed = discord.Embed(
-                title="Character Created",
-                description=f"Character **{name}** has been successfully created.",
-                color=discord.Color.green()
-            )
-            embed.add_field(name="Account ID", value=f"ACC-{new_account.id}", inline=True)
-            embed.add_field(name="Owner", value=interaction.user.mention, inline=True)
-            embed.set_footer(text="Starting Balance: 1,000 credits")
-            
-            await interaction.response.send_message(embed=embed)
+                embed = discord.Embed(
+                    title="Character Created",
+                    description=f"Character **{name}** has been successfully created.",
+                    color=discord.Color.green()
+                )
+                embed.add_field(name="Owner", value=interaction.user.mention, inline=True)
+                embed.set_footer(text="Starting Balance: $400")
+                
+                await interaction.response.send_message(embed=embed)
+        except Exception as e:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"), ephemeral=True)
 
     @app_commands.command(name="balance", description="Check an account's balance")
-    async def balance(self, interaction: discord.Interaction, account: str):
-        """Check balance using TYPE-ID (Public)."""
-        if "-" not in account:
-            return await interaction.response.send_message("Invalid account format. Please select from the autocomplete or use `TYPE-ID` (e.g., ACC-1).", ephemeral=True)
-
-        acc_type, acc_id_str = account.split("-", 1)
+    @app_commands.describe(account_id="Account to check balance for")
+    @app_commands.autocomplete(account_id=public_account_autocomplete)
+    async def balance(self, interaction: discord.Interaction, account_id: str):
         try:
-            acc_id = int(acc_id_str)
+            account_id_int = int(account_id)
+            with Session(engine) as session:
+                account = session.get(Account, account_id_int)
+                if not account:
+                    return await interaction.response.send_message(embed=self._error_embed("Account not found."), ephemeral=True)
+                
+                holder_name = account.holder.name if account.holder else "Unknown"
+                
+                await interaction.response.send_message(discord.Embed(
+                    colour=discord.Color.green(),
+                    title=f"Balance for: {holder_name}",
+                    description=f"**{holder_name}** has ${account.balance}"
+                ))
         except ValueError:
-            return await interaction.response.send_message("Invalid Account ID format. The ID must be a number.", ephemeral=True)
-
-        with Session(engine) as session:
-            acc = session.scalar(select(Account).where(Account.id == acc_id, Account.type == acc_type))
-            if not acc:
-                return await interaction.response.send_message(f"Account `{account}` not found.", ephemeral=True)
-            
-            # Find the character name for better UX
-            char_name = session.scalar(select(Character.name).where(Character.account_id == acc.id))
-            owner_str = f" (**{char_name}**)" if char_name else ""
-            
-            await interaction.response.send_message(f"Account **{account}**{owner_str} balance: **{acc.balance:,}** credits.")
-
-    @balance.autocomplete("account")
-    async def balance_account_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await self.account_autocomplete(interaction, current)
+            if not interaction.response.is_done():
+                await interaction.response.send_message(embed=self._error_embed("Invalid account selected from autocomplete."), ephemeral=True)
+        except Exception as e: 
+            if not interaction.response.is_done():
+                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"), ephemeral=True)
 
     @app_commands.command(name="transfer", description="Transfer credits between accounts")
+    @app_commands.autocomplete(from_account=private_account_autocomplete, to_account=public_account_autocomplete)
     async def transfer(self, interaction: discord.Interaction, from_account: str, to_account: str, amount: int):
-        """Transfer between accounts using TYPE-ID."""
-        if amount <= 0:
-            return await interaction.response.send_message("The transfer amount must be greater than zero.", ephemeral=True)
+        try:
+            if amount <= 0:
+                return await interaction.response.send_message(embed=self._error_embed("Transfer amount must be greater than 0."), ephemeral=True)
+                
+            from_account_id = int(from_account)
+            to_account_id = int(to_account)
 
-        if "-" not in from_account or "-" not in to_account:
-            return await interaction.response.send_message("Invalid account format. Please use the autocomplete options.", ephemeral=True)
+            with Session(engine) as session:
+                sender_account = session.get(Account, from_account_id)
+                receiver_account = session.get(Account, to_account_id)
+                
+                if not sender_account:
+                    return await interaction.response.send_message(embed=self._error_embed("Sender account not found."), ephemeral=True)
+                if not receiver_account:
+                    return await interaction.response.send_message(embed=self._error_embed("Receiver account not found."), ephemeral=True)
+                    
+                # Verify ownership of the sender account
+                is_owner = False
+                if sender_account.type == "CHAR" and sender_account.character_holder:
+                    if sender_account.character_holder.discord_id == interaction.user.id:
+                        is_owner = True
+                elif sender_account.type == "BIZ" and sender_account.business_holder:
+                    if sender_account.business_holder.owner and sender_account.business_holder.owner.discord_id == interaction.user.id:
+                        is_owner = True
+                        
+                if not is_owner:
+                    return await interaction.response.send_message(embed=self._error_embed("You do not have permission to transfer from this account."), ephemeral=True)
+                    
+                if sender_account.balance < amount:
+                    return await interaction.response.send_message(embed=self._error_embed("Insufficient funds in the sender's account."), ephemeral=True)
+                    
+                sender_account.balance -= amount
+                receiver_account.balance += amount
+                
+                session.commit()
+                
+                sender_name = sender_account.holder.name if sender_account.holder else "Unknown Sender"
+                receiver_name = receiver_account.holder.name if receiver_account.holder else "Unknown Receiver"
 
-        f_type, f_id_str = from_account.split("-", 1)
-        t_type, t_id_str = to_account.split("-", 1)
+                receiver_owner_id = None
+                if receiver_account.type == "CHAR" and receiver_account.character_holder:
+                    receiver_owner_id = receiver_account.character_holder.discord_id
+                elif receiver_account.type == "BIZ" and receiver_account.business_holder and receiver_account.business_holder.owner:
+                    receiver_owner_id = receiver_account.business_holder.owner.discord_id
 
-        with Session(engine) as session:
-            try:
-                f_id = int(f_id_str)
-                t_id = int(t_id_str)
-            except ValueError:
-                return await interaction.response.send_message("Invalid Account ID format.", ephemeral=True)
-
-            # Ownership check: User must own a character that owns the from_account
-            owner_check = session.scalar(
-                select(Character).where(
-                    Character.account_id == f_id, 
-                    Character.discord_id == interaction.user.id
+                embed = discord.Embed(
+                    title="Transfer Successful",
+                    description=f"Transferred **${amount}** from **{sender_name}** to **{receiver_name}**.",
+                    color=discord.Color.green()
                 )
-            )
-            if not owner_check:
-                return await interaction.response.send_message(f"You do not have permission to transfer from Account `{from_account}`.", ephemeral=True)
+                
+                if receiver_owner_id == interaction.user.id:
+                    embed.set_footer(text="Warning: Account boosting is against the rules!")
+                    
+                await interaction.response.send_message(embed=embed)
+        except ValueError:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(embed=self._error_embed("Please select an account from the autocomplete list."), ephemeral=True)
+        except Exception as e:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"), ephemeral=True)
 
-            sender_acc = session.scalar(select(Account).where(Account.id == f_id, Account.type == f_type))
-            receiver_acc = session.scalar(select(Account).where(Account.id == t_id, Account.type == t_type))
+    @app_commands.command(name="list", description="List accounts and their balances")
+    @app_commands.describe(user="Optional: The user to list accounts for")
+    async def list_accounts(self, interaction: discord.Interaction, user: discord.User = None): #type:ignore
+        try:
+            with Session(engine) as session:
+                if user:
+                    char_stmt = select(Character).where(Character.discord_id == user.id).limit(25)
+                    characters = session.scalars(char_stmt).all()
 
-            if not sender_acc:
-                return await interaction.response.send_message(f"Source account `{from_account}` not found.", ephemeral=True)
-            if not receiver_acc:
-                return await interaction.response.send_message(f"Destination account `{to_account}` not found.", ephemeral=True)
+                    biz_stmt = select(Business).join(Business.owner).where(Character.discord_id == user.id).limit(25)
+                    businesses = session.scalars(biz_stmt).all()
 
-            if sender_acc.balance < amount:
-                return await interaction.response.send_message(f"Insufficient funds in `{from_account}`. Available: **{sender_acc.balance}**.", ephemeral=True)
-
-            sender_acc.balance -= amount
-            receiver_acc.balance += amount
-            session.commit()
-
-        await interaction.response.send_message(f"Successfully transferred **{amount:,}** from **{from_account}** to **{to_account}**.")
-
-
-    @transfer.autocomplete("from_account")
-    @transfer.autocomplete("to_account")
-    async def transfer_account_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await self.account_autocomplete(interaction, current)
-
-
-    @app_commands.command(name="list", description="List accounts owned by a user")
-    async def list_accounts(self, interaction: discord.Interaction, user: discord.Member = None):
-        """Lists accounts associated with a user's characters."""
-        target = user or interaction.user
-        with Session(engine) as session:
-            chars = session.scalars(select(Character).where(Character.discord_id == target.id)).all()
-            
-            if not chars:
-                await interaction.response.send_message(f"{target.display_name} has no characters/accounts.", ephemeral=True)
-                return
-            
-            lines = []
-            for c in chars:
-                acc = session.get(Account, c.account_id)
-                lines.append(f"- **{c.name}**: {acc.type}-{acc.id} (Balance: {acc.balance})")
-            
-            embed = discord.Embed(
-                title=f"Accounts for {target.display_name}", 
-                description="\n".join(lines), 
-                color=discord.Color.green()
-            )
-            await interaction.response.send_message(embed=embed)
+                    accounts = []
+                    for char in characters:
+                        if char.account:
+                            accounts.append(char.account)
+                    for biz in businesses:
+                        if biz.account:
+                            accounts.append(biz.account)
+                    
+                    accounts = accounts[:25]
+                    title = f"Accounts for {user.display_name}"
+                else:
+                    stmt = select(Account).limit(25)
+                    accounts = session.scalars(stmt).all()
+                    title = "Accounts"
+                
+                if not accounts:
+                    return await interaction.response.send_message(embed=self._error_embed("No accounts found."), ephemeral=True)
+                    
+                embed = discord.Embed(title=title, color=discord.Color.blue())
+                for acc in accounts:
+                    holder_name = acc.holder.name if acc.holder else f"Account #{acc.id}"
+                    icon = "[🏢]" if acc.type == "BIZ" else "[👤]"
+                    
+                    owner_mention = "Unknown"
+                    if acc.type == "CHAR" and acc.character_holder:
+                        owner_mention = f"<@{acc.character_holder.discord_id}>"
+                    elif acc.type == "BIZ" and acc.business_holder and acc.business_holder.owner:
+                        owner_mention = f"<@{acc.business_holder.owner.discord_id}>"
+                        
+                    embed.add_field(
+                        name=f"{icon} {holder_name}", 
+                        value=f"**Owner:** {owner_mention}\n**Balance:** ${acc.balance}", 
+                        inline=False
+                    )
+                    
+                await interaction.response.send_message(embed=embed)
+        except Exception as e:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"), ephemeral=True)
 
 async def setup(bot: commands.AutoShardedBot):
     await bot.add_cog(Cog(bot))
