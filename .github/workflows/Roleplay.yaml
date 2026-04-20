@@ -39,6 +39,7 @@ jobs:
 
       - name: Secrets
         run: |
+          kubectl delete -n roleplay secrets roleplay-secrets &&
           kubectl create secret generic roleplay-secrets \
             --from-literal=token="${{ secrets.TOKEN }}" \
             --from-literal=staff_id="${{ secrets.STAFF_ID }}" \
