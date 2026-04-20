@@ -18,7 +18,7 @@ class Character(Base):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if not self.account:
-            self.account = Account(type="CHAR", balance=400)
+            self.account = Account(type="CHAR", balance=100)
 
 class Business(Base):
     __tablename__ = "businesses"
@@ -33,7 +33,7 @@ class Business(Base):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if not self.account:
-            self.account = Account(type="BIZ", balance=2000)
+            self.account = Account(type="BIZ", balance=1000)
 
 class Account(Base):
     __tablename__ = "accounts" 

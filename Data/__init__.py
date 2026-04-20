@@ -16,4 +16,3 @@ from .tables import Character, Account, Business
 )
 def initialize_database(): Base.metadata.create_all(engine)
 
-initialize_database()
