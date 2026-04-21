@@ -68,7 +68,7 @@ class Cog(commands.Cog):
             with Session(engine) as session:
                 existing_char = session.get(Character, name)
                 if existing_char:
-                    return await interaction.response.send_message(embed=self._error_embed(f"Character `{name}` already exists."), ephemeral=True)
+                    return await interaction.response.send_message(embed=self._error_embed(f"Character `{name}` already exists."))
 
                 new_char = Character(
                     name=name, 
@@ -88,7 +88,7 @@ class Cog(commands.Cog):
                 await interaction.response.send_message(embed=embed)
         except Exception as e:
             if not interaction.response.is_done():
-                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"), ephemeral=True)
+                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"))
 
 
     @app_commands.command(name="balance", description="Check an account's balance")
@@ -100,7 +100,7 @@ class Cog(commands.Cog):
             with Session(engine) as session:
                 account = session.get(Account, account_id_int)
                 if not account:
-                    return await interaction.response.send_message(embed=self._error_embed("Account not found."), ephemeral=True)
+                    return await interaction.response.send_message(embed=self._error_embed("Account not found."))
                 
                 holder_name = account.holder.name if account.holder else "Unknown"
                 
@@ -111,17 +111,17 @@ class Cog(commands.Cog):
                 ))
         except ValueError:
             if not interaction.response.is_done():
-                await interaction.response.send_message(embed=self._error_embed("Invalid account selected from autocomplete."), ephemeral=True)
+                await interaction.response.send_message(embed=self._error_embed("Invalid account selected from autocomplete."))
         except Exception as e: 
             if not interaction.response.is_done():
-                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"), ephemeral=True)
+                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"))
 
     @app_commands.command(name="transfer", description="Transfer credits between accounts")
     @app_commands.autocomplete(from_account=private_account_autocomplete, to_account=public_account_autocomplete)
     async def transfer(self, interaction: discord.Interaction, from_account: str, to_account: str, amount: int):
         try:
             if amount <= 0:
-                return await interaction.response.send_message(embed=self._error_embed("Transfer amount must be greater than 0."), ephemeral=True)
+                return await interaction.response.send_message(embed=self._error_embed("Transfer amount must be greater than 0."))
                 
             from_account_id = int(from_account)
             to_account_id = int(to_account)
@@ -131,9 +131,9 @@ class Cog(commands.Cog):
                 receiver_account = session.get(Account, to_account_id)
                 
                 if not sender_account:
-                    return await interaction.response.send_message(embed=self._error_embed("Sender account not found."), ephemeral=True)
+                    return await interaction.response.send_message(embed=self._error_embed("Sender account not found."))
                 if not receiver_account:
-                    return await interaction.response.send_message(embed=self._error_embed("Receiver account not found."), ephemeral=True)
+                    return await interaction.response.send_message(embed=self._error_embed("Receiver account not found."))
                     
                 # Verify ownership of the sender account
                 is_owner = False
@@ -145,10 +145,10 @@ class Cog(commands.Cog):
                         is_owner = True
                         
                 if not is_owner:
-                    return await interaction.response.send_message(embed=self._error_embed("You do not have permission to transfer from this account."), ephemeral=True)
+                    return await interaction.response.send_message(embed=self._error_embed("You do not have permission to transfer from this account."))
                     
                 if sender_account.balance < amount:
-                    return await interaction.response.send_message(embed=self._error_embed("Insufficient funds in the sender's account."), ephemeral=True)
+                    return await interaction.response.send_message(embed=self._error_embed("Insufficient funds in the sender's account."))
                     
                 sender_account.balance -= amount
                 receiver_account.balance += amount
@@ -176,10 +176,10 @@ class Cog(commands.Cog):
                 await interaction.response.send_message(embed=embed)
         except ValueError:
             if not interaction.response.is_done():
-                await interaction.response.send_message(embed=self._error_embed("Please select an account from the autocomplete list."), ephemeral=True)
+                await interaction.response.send_message(embed=self._error_embed("Please select an account from the autocomplete list."))
         except Exception as e:
             if not interaction.response.is_done():
-                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"), ephemeral=True)
+                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"))
 
     @app_commands.command(name="list", description="List accounts and their balances")
     @app_commands.describe(user="Optional: The user to list accounts for")
@@ -209,7 +209,7 @@ class Cog(commands.Cog):
                     title = "Accounts"
                 
                 if not accounts:
-                    return await interaction.response.send_message(embed=self._error_embed("No accounts found."), ephemeral=True)
+                    return await interaction.response.send_message(embed=self._error_embed("No accounts found."))
                     
                 embed = discord.Embed(title=title, color=discord.Color.blue())
                 for acc in accounts:
@@ -231,7 +231,7 @@ class Cog(commands.Cog):
                 await interaction.response.send_message(embed=embed)
         except Exception as e:
             if not interaction.response.is_done():
-                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"), ephemeral=True)
+                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"))
 
     @app_commands.command(name="setbalance", description="Set a user's account balance (Staff Only)")
     @app_commands.describe(account_id="Account to modify balance for", amount="New balance amount")
@@ -244,7 +244,7 @@ class Cog(commands.Cog):
             with Session(engine) as session:
                 account = session.get(Account, account_id_int)
                 if not account:
-                    return await interaction.response.send_message(embed=self._error_embed("Account not found."), ephemeral=True)
+                    return await interaction.response.send_message(embed=self._error_embed("Account not found."))
                 account.balance = amount
                 session.commit()
                 await interaction.response.send_message(discord.Embed(
@@ -254,12 +254,12 @@ class Cog(commands.Cog):
                 ))
         except ValueError:
             if not interaction.response.is_done():
-                await interaction.response.send_message(embed=self._error_embed("Invalid account selected from autocomplete."), ephemeral=True)
+                await interaction.response.send_message(embed=self._error_embed("Invalid account selected from autocomplete."))
         except commands.CheckFailure:
-            await interaction.response.send_message(embed=self._error_embed("You do not have permission to use this command."), ephemeral=True)
+            await interaction.response.send_message(embed=self._error_embed("You do not have permission to use this command."))
         except Exception as e:
             if not interaction.response.is_done():
-                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"), ephemeral=True)
+                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"))
 
 
     @app_commands.command(name="delete", description="Delete a character (Staff Only)")
@@ -270,7 +270,7 @@ class Cog(commands.Cog):
             with Session(engine) as session:
                 character = session.get(Character, name)
                 if not character:
-                    return await interaction.response.send_message(embed=self._error_embed(f"Character `{name}` not found."), ephemeral=True)
+                    return await interaction.response.send_message(embed=self._error_embed(f"Character `{name}` not found."))
                 
                 if character.account:
                     session.delete(character.account)
@@ -284,10 +284,10 @@ class Cog(commands.Cog):
                 )
                 await interaction.response.send_message(embed=embed)
         except commands.CheckFailure:
-            await interaction.response.send_message(embed=self._error_embed("You do not have permission to use this command."), ephemeral=True)
+            await interaction.response.send_message(embed=self._error_embed("You do not have permission to use this command."))
         except Exception as e:
             if not interaction.response.is_done():
-                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"), ephemeral=True)
+                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"))
 
 
 
