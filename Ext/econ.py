@@ -232,5 +232,34 @@ class Cog(commands.Cog):
             if not interaction.response.is_done():
                 await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"), ephemeral=True)
 
+    @app_commands.command(name="setbalance", description="Set a user's account balance (Staff Only)")
+    @app_commands.describe(account_id="Account to modify balance for", amount="New balance amount")
+    @app_commands.autocomplete(account_id=public_account_autocomplete)
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def set_balance(self, interaction: discord.Interaction, account_id: str, amount: int):
+        """Sets a user's account balance"""
+        try:
+            account_id_int = int(account_id)
+            with Session(engine) as session:
+                account = session.get(Account, account_id_int)
+                if not account:
+                    return await interaction.response.send_message(embed=self._error_embed("Account not found."), ephemeral=True)
+                account.balance = amount
+                session.commit()
+            await interaction.response.send_message(discord.Embed(
+                colour=discord.Color.green(),
+                title="Balance Updated",
+                description=f"Account **{account.holder.name if account.holder else f'#{account_id_int}'}** balance set to **${amount}**."
+            ))
+        except ValueError:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(embed=self._error_embed("Invalid account selected from autocomplete."), ephemeral=True)
+        except commands.CheckFailure:
+            await interaction.response.send_message(embed=self._error_embed("You do not have permission to use this command."), ephemeral=True)
+        except Exception as e:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"), ephemeral=True)
+
+
 async def setup(bot: commands.AutoShardedBot):
     await bot.add_cog(Cog(bot))
