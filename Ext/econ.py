@@ -90,6 +90,7 @@ class Cog(commands.Cog):
             if not interaction.response.is_done():
                 await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"), ephemeral=True)
 
+
     @app_commands.command(name="balance", description="Check an account's balance")
     @app_commands.describe(account_id="Account to check balance for")
     @app_commands.autocomplete(account_id=public_account_autocomplete)
@@ -259,6 +260,35 @@ class Cog(commands.Cog):
         except Exception as e:
             if not interaction.response.is_done():
                 await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"), ephemeral=True)
+
+
+    @app_commands.command(name="delete", description="Delete a character (Staff Only)")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def delete(self, interaction: discord.Interaction, name: str):
+        """Deletes a character"""
+        try:
+            with Session(engine) as session:
+                character = session.get(Character, name)
+                if not character:
+                    return await interaction.response.send_message(embed=self._error_embed(f"Character `{name}` not found."), ephemeral=True)
+                
+                if character.account:
+                    session.delete(character.account)
+                session.delete(character)
+                session.commit()
+
+                embed = discord.Embed(
+                    title="Character Deleted",
+                    description=f"Character **{name}** has been successfully deleted.",
+                    color=discord.Color.green()
+                )
+                await interaction.response.send_message(embed=embed)
+        except commands.CheckFailure:
+            await interaction.response.send_message(embed=self._error_embed("You do not have permission to use this command."), ephemeral=True)
+        except Exception as e:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"), ephemeral=True)
+
 
 
 async def setup(bot: commands.AutoShardedBot):
