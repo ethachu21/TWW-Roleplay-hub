@@ -247,7 +247,7 @@ class Cog(commands.Cog):
                     return await interaction.response.send_message(embed=self._error_embed("Account not found."))
                 account.balance = amount
                 session.commit()
-                await interaction.response.send_message(discord.Embed(
+                await interaction.response.send_message(embed=discord.Embed(
                     colour=discord.Color.green(),
                     title="Balance Updated",
                     description=f"Account **{account.holder.name if account.holder else f'#{account_id_int}'}** balance set to **${amount}**."
