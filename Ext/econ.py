@@ -104,7 +104,7 @@ class Cog(commands.Cog):
                 
                 holder_name = account.holder.name if account.holder else "Unknown"
                 
-                await interaction.response.send_message(discord.Embed(
+                await interaction.response.send_message(embed=discord.Embed(
                     colour=discord.Color.green(),
                     title=f"Balance for: {holder_name}",
                     description=f"**{holder_name}** has ${account.balance}"
