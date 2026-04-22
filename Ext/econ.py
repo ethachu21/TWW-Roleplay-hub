@@ -233,7 +233,7 @@ class Cog(commands.Cog):
             if not interaction.response.is_done():
                 await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"))
 
-    @app_commands.command(name="setbalance", description="Set a user's account balance (Staff Only)")
+    @app_commands.command(name="setbalance", description="Set an account's balance (Staff Only)")
     @app_commands.describe(account_id="Account to modify balance for", amount="New balance amount")
     @app_commands.autocomplete(account_id=public_account_autocomplete)
     @app_commands.checks.has_permissions(manage_guild=True)
@@ -261,6 +261,33 @@ class Cog(commands.Cog):
             if not interaction.response.is_done():
                 await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"))
 
+    @app_commands.command(name="setbalance", description="add to an accounts balance (Staff Only)")
+    @app_commands.describe(account_id="Account to modify balance for", amount="how much to increase the account balance by")
+    @app_commands.autocomplete(account_id=public_account_autocomplete)
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def set_balance(self, interaction: discord.Interaction, account_id: str, amount: int):
+        """add an amount to an accoun'ts balance"""
+        try:
+            account_id_int = int(account_id)
+            with Session(engine) as session:
+                account = session.get(Account, account_id_int)
+                if not account:
+                    return await interaction.response.send_message(embed=self._error_embed("Account not found."))
+                account.balance += amount
+                session.commit()
+                await interaction.response.send_message(embed=discord.Embed(
+                    colour=discord.Color.green(),
+                    title="Balance Updated",
+                    description=f"Account **{account.holder.name if account.holder else f'#{account_id_int}'}** balance set to **${account.balance}**."
+                ))
+        except ValueError:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(embed=self._error_embed("Invalid account selected from autocomplete."))
+        except commands.CheckFailure:
+            await interaction.response.send_message(embed=self._error_embed("You do not have permission to use this command."))
+        except Exception as e:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"))
 
     @app_commands.command(name="delete", description="Delete a character (Staff Only)")
     @app_commands.checks.has_permissions(manage_guild=True)
