@@ -51,6 +51,9 @@ jobs:
       - name: Restart Deployment & Update Manifest
         run: |
           kubectl apply -f .k8s/postgres-deployment.yaml
-          kubectl rollout status deployment/postgres
+          kubectl rollout restart deployment postgres
+	  kubectl rollout status deployment/postgres
           kubectl apply -f .k8s/discord-deployment.yaml
+	  kubectl rollout restart deployment roleplay-bot
           kubectl rollout status deployment/roleplay-bot
+	  
