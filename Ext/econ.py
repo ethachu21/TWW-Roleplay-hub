@@ -233,7 +233,7 @@ class Cog(commands.Cog):
             if not interaction.response.is_done():
                 await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"))
 
-    @app_commands.command(name="setbalance", description="Set an account's balance (Staff Only)")
+    @app_commands.command(name="set_balance", description="Set an account's balance (Staff Only)")
     @app_commands.describe(account_id="Account to modify balance for", amount="New balance amount")
     @app_commands.autocomplete(account_id=public_account_autocomplete)
     @app_commands.checks.has_permissions(manage_guild=True)
@@ -261,11 +261,11 @@ class Cog(commands.Cog):
             if not interaction.response.is_done():
                 await interaction.response.send_message(embed=self._error_embed(f"something went wrong! {e}"))
 
-    @app_commands.command(name="setbalance", description="add to an accounts balance (Staff Only)")
+    @app_commands.command(name="add_balance", description="add to an accounts balance (Staff Only)")
     @app_commands.describe(account_id="Account to modify balance for", amount="how much to increase the account balance by")
     @app_commands.autocomplete(account_id=public_account_autocomplete)
     @app_commands.checks.has_permissions(manage_guild=True)
-    async def set_balance(self, interaction: discord.Interaction, account_id: str, amount: int):
+    async def add_balance(self, interaction: discord.Interaction, account_id: str, amount: int):
         """add an amount to an accoun'ts balance"""
         try:
             account_id_int = int(account_id)
